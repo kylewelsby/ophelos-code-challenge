@@ -26,7 +26,8 @@ Visit [http://localhost:8000](http://localhost:8000)
 
 ## 🧪 Testing
 
-Before running tests, you need to provision a PostgreSQL server and update `.env` with the postgres URI.
+Before running tests, you need to provision a PostgreSQL server and update
+`.env` with the postgres URI.
 
 ```
 # .env

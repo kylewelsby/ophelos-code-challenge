@@ -5,7 +5,7 @@ export function formattedDate(date: string) {
   });
 }
 
-export function formattedAmount(amount: number) {
+export function formattedAmount(amount: bigint | number) {
   return amount.toLocaleString("en-GB", {
     style: "currency",
     currency: "GBP",

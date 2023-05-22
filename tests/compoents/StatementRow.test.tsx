@@ -8,7 +8,7 @@ Deno.test("StatementRow", async (t) => {
   await t.step("should render a row with a statement", () => {
     const statement = {
       date: "2023-05-01",
-      balance: 1000,
+      balance: 1000n,
       user_id: "user1",
     };
     const output = render(<StatementRow statement={statement} />);
