@@ -3,7 +3,7 @@
     "@/": "./",
     "$fresh/": "https://deno.land/x/fresh@1.1.5/",
     "$reform": "https://deno.land/x/reformdata@0.2.2/mod.ts",
-    "$sqlite": "https://deno.land/x/sqlite@v3.7.2/mod.ts",
+    "$postgres": "https://deno.land/x/postgres@v0.17.0/mod.ts",
     "preact": "https://esm.sh/preact@10.13.1",
     "preact/": "https://esm.sh/preact@10.13.1/",
     "preact-render-to-string": "https://esm.sh/*preact-render-to-string@5.2.6",

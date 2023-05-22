@@ -1,16 +1,18 @@
-import { DB } from "$sqlite";
 import { assertEquals } from "@/tests/deps.ts";
 import {
   createDatabase,
   listStatements,
+  pool,
   readItems,
   writeItem,
 } from "@/services/database.ts";
+import { StatementItem } from "../../shared/types.ts";
 
 async function resetDatabase() {
-  const db = new DB("database.db", { mode: "write" });
-  await db.execute(`DELETE FROM items`);
-  await db.close();
+  const conn = await pool.connect();
+  await conn.queryArray("TRUNCATE TABLE items");
+  await conn.release();
+  await conn.end();
 }
 
 Deno.test("database", async (t) => {
@@ -18,106 +20,119 @@ Deno.test("database", async (t) => {
   await t.step("writeItem", async () => {
     await resetDatabase();
     const item = {
-      user: "user1",
-      date: "2020-01-01",
+      user_id: "user1",
+      date: new Date(2023, 0, 10),
       title: "title",
-      amount: 1.23,
+      amount: 1000,
     };
     await writeItem(item);
 
-    const db = new DB("database.db", { mode: "read" });
-    const result = await db.queryEntries(
-      "SELECT id, user, date, title, amount FROM items ORDER BY id DESC LIMIT 1",
+    const conn = await pool.connect();
+    const result = await conn.queryObject<StatementItem>(
+      "SELECT * FROM items ORDER BY id DESC LIMIT 1",
     );
-    assertEquals(result.length, 1);
-    assertEquals(result[0].user, "user1");
-    assertEquals(result[0].date, item.date);
-    assertEquals(result[0].title, item.title);
-    assertEquals(result[0].amount, item.amount);
-    await db.close();
+    assertEquals(result.rowCount, 1);
+    const row = result.rows[0];
+    assertEquals(row.user_id, "user1");
+    assertEquals(
+      row.date.toISOString(),
+      new Date(2023, 0, 10).toISOString(),
+      "date",
+    );
+    assertEquals(row.title, item.title);
+    assertEquals(row.amount, item.amount);
+    await conn.end();
   });
 
   await t.step("readStatement", async () => {
     await resetDatabase();
-    const db = new DB("database.db", { mode: "write" });
-    await db.query(
-      "INSERT INTO items (user, date, title, amount) VALUES (:user, :date, :title, :amount)",
+    const conn = await pool.connect();
+    await conn.queryArray(
+      "INSERT INTO items (user_id, date, title, amount) VALUES ($user_id, $date, $title, $amount)",
       {
-        user: "user1",
+        user_id: "user1",
         date: "2023-05-01",
         title: "Salary",
         amount: 3000,
       },
     );
-    await db.query(
-      "INSERT INTO items (user, date, title, amount) VALUES (:user, :date, :title, :amount)",
+    await conn.queryArray(
+      "INSERT INTO items (user_id, date, title, amount) VALUES ($user_id, $date, $title, $amount)",
       {
-        user: "user1",
+        user_id: "user1",
         date: "2023-05-02",
         title: "Rent",
         amount: 500,
       },
     );
-    await db.query(
-      "INSERT INTO items (user, date, title, amount) VALUES (:user, :date, :title, :amount)",
+    await conn.queryArray(
+      "INSERT INTO items (user_id, date, title, amount) VALUES ($user_id, $date, $title, $amount)",
       {
-        user: "user1",
+        user_id: "user1",
         date: "2023-06-01",
         title: "Salary",
         amount: 3000,
       },
     );
-    await db.close();
+    await conn.release();
+    await conn.end();
 
-    const items = await readItems({ date: new Date("2023-05-01") });
+    const items = await readItems({
+      date: new Date("2023-05-01"),
+      user_id: "user1",
+    });
 
     assertEquals(items.length, 2);
-    assertEquals(items[0].user, "user1");
-    assertEquals(items[0].date, "2023-05-01");
+    assertEquals(items[0].user_id, "user1");
+    assertEquals(items[0].date.toISOString(), "2023-05-01T00:00:00.000Z");
     assertEquals(items[0].title, "Salary");
     assertEquals(items[0].amount, 3000);
 
-    const items2 = await readItems({ date: new Date("2023-06-05") });
+    const items2 = await readItems({
+      date: new Date("2023-06-05"),
+      user_id: "user1",
+    });
     assertEquals(items2.length, 1);
   });
 
   await t.step("listStatements", async () => {
     await resetDatabase();
-    const db = new DB("database.db", { mode: "write" });
-    await db.query(
-      "INSERT INTO items (user, date, title, amount) VALUES (:user, :date, :title, :amount)",
+    const conn = await pool.connect();
+    await conn.queryArray(
+      "INSERT INTO items (user_id, date, title, amount) VALUES ($user_id, $date, $title, $amount)",
       {
-        user: "user1",
+        user_id: "user1",
         date: "2023-05-01",
         title: "Salary",
         amount: 3000,
       },
     );
-    await db.query(
-      "INSERT INTO items (user, date, title, amount) VALUES (:user, :date, :title, :amount)",
+    await conn.queryArray(
+      "INSERT INTO items (user_id, date, title, amount) VALUES ($user_id, $date, $title, $amount)",
       {
-        user: "user1",
+        user_id: "user1",
         date: "2023-05-02",
         title: "Rent",
         amount: -500,
       },
     );
-    await db.query(
-      "INSERT INTO items (user, date, title, amount) VALUES (:user, :date, :title, :amount)",
+    await conn.queryArray(
+      "INSERT INTO items (user_id, date, title, amount) VALUES ($user_id, $date, $title, $amount)",
       {
-        user: "user1",
+        user_id: "user1",
         date: "2023-06-01",
         title: "Salary",
         amount: 3000,
       },
     );
-    await db.close();
+    await conn.release();
+    await conn.end();
 
     const result = await listStatements("user1");
     assertEquals(result.length, 2);
     assertEquals(result[0].date, "2023-06-01");
-    assertEquals(result[0].balance, 3000);
+    assertEquals(result[0].balance, 3000n);
     assertEquals(result[1].date, "2023-05-01");
-    assertEquals(result[1].balance, 2500);
+    assertEquals(result[1].balance, 2500n);
   });
 });

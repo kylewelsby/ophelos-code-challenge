@@ -26,11 +26,20 @@ Visit [http://localhost:8000](http://localhost:8000)
 
 ## 🧪 Testing
 
+Before running tests, you need to provision a PostgreSQL server and update `.env` with the postgres URI.
+
+```
+# .env
+DATABASE_URL=postgres://{user}:{password}@rogue.db.elephantsql.com/{database}
+```
+
 Run the unit tests with the following commands.
 
 ```
 deno test -A
 ```
+
+_Tests will create and destroy the truncate the database on every test run_
 
 ## 🚨 Linting
 

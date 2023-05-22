@@ -1,36 +1,39 @@
-import { DB } from "$sqlite";
+import * as postgres from "$postgres";
+const databaseUrl = Deno.env.get("DATABASE_URL")!;
+export const pool = new postgres.Pool(databaseUrl, 3, true);
 
 import { Statement, StatementItem } from "@/shared/types.ts";
 
-const databaseFile = "database.db";
 export async function createDatabase() {
-  const db = new DB(databaseFile, { mode: "create" });
-  await db.execute(`CREATE TABLE IF NOT EXISTS items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user TEXT,
-    date TEXT,
-    title TEXT,
-    amount REAL
-  )`);
-  await db.close();
+  const conn = await pool.connect();
+  await conn.queryArray(`CREATE TABLE IF NOT EXISTS items (
+    id serial PRIMARY KEY,
+    user_id VARCHAR NOT NULL,
+    date timestamp with time zone NOT NULL,
+    title VARCHAR NOT NULL,
+    amount integer NOT NULL
+  );`);
+  await conn.release();
+  await conn.end();
 }
 
 export async function writeItem(item: StatementItem): Promise<void> {
-  const db = new DB(databaseFile, { mode: "write" });
-  await db.query(
-    "INSERT INTO items (user, date, title, amount) VALUES (:user, :date, :title, :amount)",
+  const conn = await pool.connect();
+  await conn.queryArray(
+    "INSERT INTO items (user_id, date, title, amount) VALUES ($user_id, $date, $title, $amount)",
     {
-      user: item.user,
+      user_id: item.user_id,
       date: item.date,
       title: item.title,
       amount: item.amount,
     },
   );
-  await db.close();
+  await conn.release();
+  await conn.end();
 }
 
 export async function readItems(
-  { date }: { date: Date },
+  { date, user_id }: { date: Date; user_id: string },
 ): Promise<StatementItem[]> {
   const startOfMonth =
     new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split(
@@ -41,42 +44,46 @@ export async function readItems(
       "T",
     )[0];
 
-  const db = new DB(databaseFile, { mode: "read" });
-  const result = await db.queryEntries(
-    "SELECT * FROM items WHERE amount IS NOT '' AND amount != 0 AND date BETWEEN :start AND :end",
-    { start: startOfMonth, end: endOfMonth },
+  const conn = await pool.connect();
+  const attr = { start: startOfMonth, end: endOfMonth, user_id: user_id };
+  const result = await conn.queryObject<StatementItem>(
+    "SELECT * FROM items WHERE user_id = $user_id AND amount != 0 AND date BETWEEN $start AND $end",
+    attr,
   );
-  await db.close();
+  await conn.release();
+  await conn.end();
 
-  return result as unknown as StatementItem[];
+  return result.rows;
 }
 
 export async function updateItem(
   item: StatementItem,
 ): Promise<void> {
-  const db = new DB(databaseFile, { mode: "write" });
-  await db.query(
-    "UPDATE items SET amount = :amount, title = :title WHERE id = :id",
+  const conn = await pool.connect();
+  await conn.queryArray(
+    "UPDATE items SET amount = $amount, title = $title WHERE id = $id",
     {
       id: item.id,
       title: item.title,
       amount: item.amount,
     },
   );
-  await db.close();
+  await conn.release();
+  await conn.end();
 }
 
 export async function listStatements(
-  user: string,
+  user_id: string,
 ): Promise<Statement[]> {
-  const db = new DB(databaseFile, { mode: "read" });
-  const result = await db.queryEntries(
-    `SELECT user, strftime('%Y-%m-01', date) AS date, COUNT(id) AS count, SUM(amount) AS balance FROM items WHERE user = :user GROUP BY strftime('%Y-%m', date) ORDER BY date DESC`,
+  const conn = await pool.connect();
+  const result = await conn.queryObject<Statement>(
+    `WITH cte AS (SELECT user_id, TO_CHAR(items.date, 'YYYY-MM-01') as _alt_date, count(*), sum(amount) AS balance FROM items WHERE user_id = $user_id GROUP BY _alt_date, user_id ORDER BY _alt_date) SELECT user_id, count, balance, _alt_date AS date from cte ORDER BY date DESC;`,
     {
-      user: user,
+      user_id: user_id,
     },
   );
 
-  await db.close();
-  return result as unknown as Statement[];
+  await conn.release();
+  await conn.end();
+  return result.rows;
 }

@@ -9,7 +9,7 @@ Deno.test("StatementRow", async (t) => {
     const statement = {
       date: "2023-05-01",
       balance: 1000,
-      user: "user1",
+      user_id: "user1",
     };
     const output = render(<StatementRow statement={statement} />);
     assertStringIncludes(output, "May 2023");

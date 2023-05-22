@@ -17,44 +17,40 @@ interface Data {
 
 export const handler: Handlers<Data> = {
   async GET(req, ctx) {
-    const user = ctx.params.hash;
+    const user = ctx.params.user;
     const statements = await listStatements(user);
     return ctx.render({
       statements,
     });
   },
   async POST(req, ctx) {
-    const user = ctx.params.hash;
+    const user = ctx.params.user;
     const data = await req.formData();
     const input = reform(data) as unknown as StatementItemInput;
 
-    input.expense.forEach((item) => {
-      const amount = parseInt(item.amount.toString(), 10);
-      if (amount && !isNaN(amount) && amount !== 0) {
-        writeItem({
-          user: user,
-          date: input.date,
-          title: item.title,
-          amount: -amount,
-        });
-      }
-    });
+    for (const item of (input.expense || [])) {
+      if (!item.amount) continue;
+      await writeItem({
+        user_id: user,
+        date: input.date,
+        title: item.title,
+        amount: -item.amount,
+      });
+    }
+    for (const item of (input.income || [])) {
+      if (!item.amount) continue;
+      await writeItem({
+        user_id: user,
+        date: input.date,
+        title: item.title,
+        amount: item.amount,
+      });
+    }
 
-    input.income.forEach((item) => {
-      const amount = parseInt(item.amount.toString(), 10);
-      if (amount && !isNaN(amount) && amount !== 0) {
-        writeItem({
-          user: user,
-          date: input.date,
-          title: item.title,
-          amount: amount,
-        });
-      }
-    });
     const items: StatementItem[] = [];
 
     const url = new URL(req.url);
-    url.pathname = `/${ctx.params.hash}/${input.date}`;
+    url.pathname = `/${user}/${input.date}`;
     return Response.redirect(url.href);
   },
 };
@@ -94,7 +90,7 @@ export default function Statements({ params, data }: PageProps) {
             </p>
             <div class="mt-6">
               <a
-                href={`${params.hash}/new`}
+                href={`${params.user}/new`}
                 class="inline-flex items-center rounded-md bg-yellow-100 px-3 py-2 text-sm font-semibold shadow-sm hover:bg-yellow-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-600"
               >
                 <svg
@@ -124,7 +120,7 @@ export default function Statements({ params, data }: PageProps) {
               </div>
               <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
                 <a
-                  href={`${params.hash}/new`}
+                  href={`${params.user}/new`}
                   className="block rounded-md bg-yellow-100 px-3 py-2 text-center text-sm font-semibold shadow-sm hover:bg-yellow-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-200"
                 >
                   Add statement

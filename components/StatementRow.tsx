@@ -9,7 +9,7 @@ export function StatementRow({ statement }: Props) {
   return (
     <tr key={statement.date}>
       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-        <a href={`/${statement.user}/${statement.date}`}>
+        <a href={`/${statement.user_id}/${statement.date}`}>
           {formattedDate(statement.date)}
         </a>
       </td>

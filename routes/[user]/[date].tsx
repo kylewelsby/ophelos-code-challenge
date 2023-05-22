@@ -17,7 +17,7 @@ interface Data {
 export const handler: Handlers<Data> = {
   async GET(_req, ctx) {
     const { date, user } = ctx.params;
-    const items = await readItems({ date: new Date(date) });
+    const items = await readItems({ date: new Date(date), user_id: user });
     return ctx.render({
       items,
     });
@@ -28,25 +28,26 @@ export const handler: Handlers<Data> = {
     const data = await req.formData();
     const input = reform(data) as unknown as StatementItemInput;
 
-    (input.expense || []).forEach((item, index) => {
-      updateItem({
-        id: index.toString(),
-        user: user,
-        date: date,
+    for (const item of (input.expense || [])) {
+      if (!item) continue;
+      await updateItem({
+        id: input.expense.indexOf(item),
+        user_id: user,
+        date: new Date(date),
         title: item.title,
         amount: -item.amount,
       });
-    });
-
-    (input.income || []).forEach((item, index) => {
-      updateItem({
-        id: index.toString(),
-        user: user,
-        date: date,
+    }
+    for (const item of (input.income || [])) {
+      if (!item) continue;
+      await updateItem({
+        id: input.income.indexOf(item),
+        user_id: user,
+        date: new Date(date),
         title: item.title,
         amount: item.amount,
       });
-    });
+    }
 
     return Response.redirect(req.url);
   },

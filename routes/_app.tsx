@@ -1,7 +1,7 @@
 import { AppProps } from "$fresh/server.ts";
 
 export default function App({ Component }: AppProps) {
-  const hash = Component().props.params.hash;
+  const user = Component().props.params.user;
   return (
     <>
       <div class="min-h-full">
@@ -18,11 +18,11 @@ export default function App({ Component }: AppProps) {
                     />
                     Ophelos
                   </div>
-                  {hash && (
+                  {user && (
                     <div class="hidden lg:ml-6 lg:block">
                       <div class="flex space-x-4">
                         <a
-                          href={`/${hash}/`}
+                          href={`/${user}/`}
                           class="rounded-md py-2 px-3 text-sm font-medium"
                           aria-current="page"
                         >
@@ -42,9 +42,9 @@ export default function App({ Component }: AppProps) {
                     >
                       Hire Me
                     </a>
-                    {hash && (
+                    {user && (
                       <a
-                        href={`/${hash}/new`}
+                        href={`/${user}/new`}
                         class="bg-yellow-100 hover:bg-yellow-200 rounded-md py-2 px-3 text-sm font-medium ml-4"
                         aria-current="page"
                       >

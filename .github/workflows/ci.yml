@@ -29,3 +29,5 @@ jobs:
 
       - name: Run tests
         run: deno test -A
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
