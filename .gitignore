@@ -1,2 +1,5 @@
 database.db
 .env
+
+exchange_modules/
+.exchange_modules_tmp/
